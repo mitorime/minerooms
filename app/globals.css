@@ -81,8 +81,8 @@ html[lang="ja"] .level-picker::before { content: "部屋の広さ"; }
 .info-panel h2 { margin: 0 0 30px; color: #514407; font-size: 28px; font-weight: 700; letter-spacing: -.04em; }
 .info-panel h3 { margin: 0 0 9px; color: #62520c; font-size: 10px; font-weight: 700; letter-spacing: .06em; }
 .info-panel section { margin-top: 29px; }
-.info-panel p, .copyleft, .license-intro { margin: 0 0 16px; font-size: 12px; line-height: 1.75; letter-spacing: -.01em; }
-.credits-panel p, .credits-panel .copyleft { font-size: 14px; }
+.info-panel p, .license-notice, .license-intro { margin: 0 0 16px; font-size: 12px; line-height: 1.75; letter-spacing: -.01em; }
+.credits-panel p, .credits-panel .license-notice { font-size: 14px; }
 .credit-note { color: rgba(78,65,8,.55); font-weight: 400; }
 .info-panel small { color: rgba(78,65,8,.62); font-size: 10px; }
 .howto-panel { width: min(720px,100%); }

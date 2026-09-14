@@ -68,6 +68,6 @@ public/sounds/
 
 ## License
 
-(ↄ) Copyleft 2026 mitori / studio pseudohalo.
+CC0 1.0 Universal — No rights reserved. mitori / studio pseudohalo.
 
-このプロジェクトのmitori制作部分は[GNU General Public License v3.0](./LICENSE)で公開しています。依存ライブラリとアイコンには、それぞれのライセンスが適用されます。ライセンス音源を収録した`public/sounds/`はGPLの対象外で、このリポジトリには含まれません。
+このプロジェクトのmitori制作のソースコードとオリジナル素材は、[CC0 1.0 Universal](./LICENSE)によりパブリックドメインへ提供しています。依存ライブラリ、アイコン、ライセンス音源には、それぞれのライセンスが適用されます。ライセンス音源を収録した`public/sounds/`はCC0の対象外で、このリポジトリには含まれません。
