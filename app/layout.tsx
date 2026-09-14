@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://minerooms.mitori.me"),
   title: "Minerooms",
-  description: "Backrooms風の一人称マインスイーパー。",
+  description: "Minesweeper reborn, as a Backrooms-like place you walk through.",
   icons: { icon: { url: "/favicon.ico", type: "image/x-icon", sizes: "256x256" } },
 };
 
