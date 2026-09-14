@@ -39,12 +39,16 @@ const FALL_REVEAL_DURATION = FALL_WAKE_FLOOR_DURATION + FALL_WAKE_RISE_DURATION;
 const FALL_TOTAL_DURATION = FALL_REVEAL_START + FALL_REVEAL_DURATION;
 const SETTINGS_STORAGE_KEY = "minerooms.settings.v2";
 const LANGUAGE_STORAGE_KEY = "minerooms.language.v1";
-const AUDIO_URLS = [
-  "/sounds/crash-1.mp3", "/sounds/crash-2.mp3", "/sounds/crash-near.mp3",
-  "/sounds/exit.mp3", "/sounds/fall-1.mp3", "/sounds/fall-2.mp3",
-  "/sounds/fluorescent-buzz.mp3", "/sounds/marking.mp3", "/sounds/mine-broke.mp3",
-  "/sounds/running.mp3", "/sounds/walking.mp3",
+const AUDIO_CDN_BASE = "https://minerooms-audio.mitori-kadomachi948.workers.dev";
+const AUDIO_FILES = [
+  "crash-1.mp3", "crash-2.mp3", "crash-near.mp3",
+  "exit.mp3", "fall-1.mp3", "fall-2.mp3",
+  "fluorescent-buzz.mp3", "irnandy-short.mp3", "marking.mp3", "mine-broke.mp3",
+  "running.mp3", "walking.mp3",
 ] as const;
+const audioUrl = (filename: string) => typeof window !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
+  ? `/sounds/${filename}`
+  : `${AUDIO_CDN_BASE}/${filename}`;
 type Player = { x: number; y: number; angle: number; pitch: number; bobPhase: number; bobAmount: number };
 type Stick = { x: number; y: number };
 type ExitOpening = { x: number; y: number } | null;
@@ -53,6 +57,7 @@ type BreakKey = "KeyR" | "Space" | "Enter";
 type DashKey = "Shift" | "KeyQ";
 type MarkKey = "KeyF" | "KeyE" | "Tab";
 type RenderMode = "dreamy" | "realistic";
+type BgmSource = "music" | "fluorescent";
 type UiLanguage = "en" | "ja";
 type LanguagePreference = "system" | UiLanguage;
 const UI_COPY = {
@@ -60,13 +65,13 @@ const UI_COPY = {
     enter: "Enter >", howToPlay: "How To Play", settings: "Settings", english: "English (EN)", japanese: "Japanese (JA)", credits: "Credits", licenses: "Licenses", github: "GitHub Repository ↗︎",
     cancel: "Cancel", reset: "Reset", apply: "Apply", config: "Config", breakKey: "Break wall key (for PC)", markKey: "Marking key (for PC)", dashKey: "Dash key (for PC)", mouseSensitivity: "Mouse sensitivity (for PC)", noclip: "Noclip walls",
     graphics: "Graphics", renderingMode: "Rendering mode", dreamy: "Dreamy", realistic: "Realistic", flicker: "Fluorescent flicker", dust: "Dust motes", wallPulse: "Breakable wall pulse", renderDistance: "Render distance", renderWarning: "Higher values may reduce performance.", playerHeight: "Player height",
-    sound: "Sound", masterSound: "Master sound", markedMines: "MARKED MINES", position: "POS", goal: "GOAL", dropped: "dropped", elapsed: "You were here for", backToTitle: "Back to title", nextRoom: "Go next level / Retry", close: "Close", on: "on", off: "off", gameInfo: "Game information", githubAria: "GitHub Repository, opens in a new tab",
+    sound: "Sound", masterSound: "Master sound", bgmSource: "BGM", music: "Music", fluorescent: "Fluorescent", markedMines: "MARKED MINES", position: "POS", goal: "GOAL", dropped: "dropped", elapsed: "You were here for", backToTitle: "Back to title", nextRoom: "Go next level / Retry", close: "Close", on: "on", off: "off", gameInfo: "Game information", githubAria: "GitHub Repository, opens in a new tab",
   },
   ja: {
     enter: "入る >", howToPlay: "遊び方", settings: "設定", english: "英語 (EN)", japanese: "日本語 (JA)", credits: "クレジット", licenses: "ライセンス表記", github: "GitHub リポジトリ ↗︎",
     cancel: "閉じる", reset: "リセット", apply: "適用", config: "操作", breakKey: "壁の破壊キー (PC 用)", markKey: "フラグキー (PC 用)", dashKey: "ダッシュキー (PC 用)", mouseSensitivity: "マウスの感度 (PC 用)", noclip: "壁を通り抜けて破壊",
     graphics: "グラフィック", renderingMode: "描画モード", dreamy: "白昼夢", realistic: "写実的", flicker: "蛍光灯の明滅", dust: "埃の表示", wallPulse: "破壊する壁を点滅", renderDistance: "描画距離", renderWarning: "遠くまで描画すると重くなることがあります。", playerHeight: "身長",
-    sound: "サウンド", masterSound: "マスター", markedMines: "フラグ済み", position: "座標", goal: "脱出口", dropped: "落下回数", elapsed: "経過時間", backToTitle: "タイトルに戻る", nextRoom: "次の部屋へ (リトライ)", close: "閉じる", on: "オン", off: "オフ", gameInfo: "ゲーム情報", githubAria: "GitHub リポジトリ、新しいタブで開きます",
+    sound: "サウンド", masterSound: "マスター", bgmSource: "BGM", music: "音楽", fluorescent: "蛍光灯", markedMines: "フラグ済み", position: "座標", goal: "脱出口", dropped: "落下回数", elapsed: "経過時間", backToTitle: "タイトルに戻る", nextRoom: "次の部屋へ (リトライ)", close: "閉じる", on: "オン", off: "オフ", gameInfo: "ゲーム情報", githubAria: "GitHub リポジトリ、新しいタブで開きます",
   },
 } as const;
 type WallFace = "north" | "south" | "east" | "west";
@@ -106,10 +111,11 @@ type GameSettings = {
   mouseSensitivity: number;
   renderMode: RenderMode;
   soundEnabled: boolean;
+  bgmSource: BgmSource;
   bgm: number;
   sfx: number;
 };
-const DEFAULT_SETTINGS: GameSettings = { breakKey: "KeyR", markKey: "KeyF", chargeBreak: false, dashKey: "Shift", flicker: true, dust: true, wallPulse: true, renderDistance: DEFAULT_RENDER_DISTANCE, playerHeight: DEFAULT_PLAYER_HEIGHT, mouseSensitivity: 100, renderMode: "dreamy", soundEnabled: true, bgm: 60, sfx: 80 };
+const DEFAULT_SETTINGS: GameSettings = { breakKey: "KeyR", markKey: "KeyF", chargeBreak: false, dashKey: "Shift", flicker: true, dust: true, wallPulse: true, renderDistance: DEFAULT_RENDER_DISTANCE, playerHeight: DEFAULT_PLAYER_HEIGHT, mouseSensitivity: 100, renderMode: "dreamy", soundEnabled: true, bgmSource: "music", bgm: 60, sfx: 80 };
 let planeCanvas: HTMLCanvasElement | null = null;
 let planeContext: CanvasRenderingContext2D | null = null;
 type LampCell = { active: boolean; offsetX: number; offsetY: number };
@@ -166,6 +172,7 @@ function restoreSettings(raw: string, defaults: GameSettings): GameSettings | nu
       mouseSensitivity: clamp(Number(saved.mouseSensitivity) || defaults.mouseSensitivity, MIN_MOUSE_SENSITIVITY, MAX_MOUSE_SENSITIVITY),
       renderMode: saved.renderMode === "realistic" ? "realistic" : "dreamy",
       soundEnabled: typeof saved.soundEnabled === "boolean" ? saved.soundEnabled : defaults.soundEnabled,
+      bgmSource: saved.bgmSource === "fluorescent" ? "fluorescent" : "music",
       bgm: clamp(Number.isFinite(Number(saved.bgm)) ? Number(saved.bgm) : defaults.bgm, 0, 100),
       sfx: clamp(Number.isFinite(Number(saved.sfx)) ? Number(saved.sfx) : defaults.sfx, 0, 100),
     };
@@ -607,7 +614,6 @@ export function MineroomsGame() {
   const wallMarksRef = useRef(new Set<string>());
   const droppedRef = useRef(0);
   const goalRef = useRef({ x: initialGoalIndex % worldRef.current.size, y: Math.floor(initialGoalIndex / worldRef.current.size) });
-  const debugElementRef = useRef<HTMLSpanElement>(null);
   const mineCounterElementRef = useRef<HTMLSpanElement>(null);
   const totalPitsRef = useRef(worldRef.current.cells.filter(cell => cell === "pit").length);
   const settingsRef = useRef<GameSettings>(DEFAULT_SETTINGS);
@@ -615,7 +621,6 @@ export function MineroomsGame() {
   const movementSfxRef = useRef<{ kind: "walking" | "running" | null; source: AudioBufferSourceNode | null; gain: GainNode | null }>({ kind: null, source: null, gain: null });
   const movementLoadTokenRef = useRef(0);
   const bgmContextRef = useRef<AudioContext | null>(null);
-  const bgmBufferRef = useRef<AudioBuffer | null>(null);
   const bgmSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const bgmGainRef = useRef<GainNode | null>(null);
   const bgmLoadTokenRef = useRef(0);
@@ -711,7 +716,7 @@ export function MineroomsGame() {
     const existingContext = bgmContextRef.current;
     const context = existingContext && existingContext.state !== "closed" ? existingContext : new AudioContext();
     bgmContextRef.current = context;
-    void context.resume().then(() => loadAudioBuffer(context, `/sounds/${requestedKind}.mp3`)).then(buffer => {
+    void context.resume().then(() => loadAudioBuffer(context, audioUrl(`${requestedKind}.mp3`))).then(buffer => {
       if (token !== movementLoadTokenRef.current || movementSfxRef.current.kind !== requestedKind) return;
       const latestSettings = settingsRef.current;
       if (!latestSettings.soundEnabled || latestSettings.sfx <= 0) return;
@@ -727,13 +732,26 @@ export function MineroomsGame() {
       if (token === movementLoadTokenRef.current) movementSfxRef.current = { kind: null, source: null, gain: null };
     });
   }, [loadAudioBuffer]);
-  const stopBgm = useCallback(() => {
+  const stopBgm = useCallback((fadeOut = 0) => {
     bgmLoadTokenRef.current++;
-    try { bgmSourceRef.current?.stop(); } catch { /* The source may already have stopped. */ }
-    bgmSourceRef.current?.disconnect();
+    const source = bgmSourceRef.current;
+    const gain = bgmGainRef.current;
+    const context = bgmContextRef.current;
     bgmSourceRef.current = null;
-    bgmGainRef.current?.disconnect();
     bgmGainRef.current = null;
+    if (!source) { gain?.disconnect(); return; }
+    if (fadeOut > 0 && gain && context && context.state !== "closed") {
+      const now = context.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(0, now + fadeOut);
+      source.addEventListener("ended", () => { source.disconnect(); gain.disconnect(); }, { once: true });
+      try { source.stop(now + fadeOut); } catch { source.disconnect(); gain.disconnect(); }
+      return;
+    }
+    try { source.stop(); } catch { /* The source may already have stopped. */ }
+    source.disconnect();
+    gain?.disconnect();
   }, []);
   const startBgm = useCallback(async () => {
     const currentSettings = settingsRef.current;
@@ -745,8 +763,8 @@ export function MineroomsGame() {
       const context = existingContext && existingContext.state !== "closed" ? existingContext : new AudioContext();
       bgmContextRef.current = context;
       await context.resume();
-      const buffer = bgmBufferRef.current ?? await loadAudioBuffer(context, "/sounds/fluorescent-buzz.mp3");
-      bgmBufferRef.current = buffer;
+      const bgmUrl = audioUrl(currentSettings.bgmSource === "fluorescent" ? "fluorescent-buzz.mp3" : "irnandy-short.mp3");
+      const buffer = await loadAudioBuffer(context, bgmUrl);
       if (token !== bgmLoadTokenRef.current) return;
       const source = context.createBufferSource();
       const gain = context.createGain();
@@ -861,7 +879,7 @@ export function MineroomsGame() {
     const existingContext = bgmContextRef.current;
     const context = existingContext && existingContext.state !== "closed" ? existingContext : new AudioContext();
     bgmContextRef.current = context;
-    for (const source of AUDIO_URLS) void loadAudioBuffer(context, source).catch(() => {});
+    for (const source of AUDIO_FILES) void loadAudioBuffer(context, audioUrl(source)).catch(() => {});
     const unlock = () => { if (context.state === "suspended") void context.resume(); };
     addEventListener("pointerdown", unlock, { passive: true });
     addEventListener("keydown", unlock);
@@ -875,7 +893,6 @@ export function MineroomsGame() {
     stopAllSfx();
     const context = bgmContextRef.current;
     bgmContextRef.current = null;
-    bgmBufferRef.current = null;
     sfxBufferCacheRef.current.clear();
     audioLoadPromisesRef.current.clear();
     if (context?.state !== "closed") void context?.close();
@@ -954,8 +971,8 @@ export function MineroomsGame() {
     const playWallBreakSfx = (world: World, x: number, y: number) => {
       const nearbyDanger = countNearbyPits(world, x, y) >= 2;
       const source = nearbyDanger && Math.random() < .5
-        ? "/sounds/crash-near.mp3"
-        : `/sounds/crash-${Math.random() < .5 ? 1 : 2}.mp3`;
+        ? audioUrl("crash-near.mp3")
+        : audioUrl(`crash-${Math.random() < .5 ? 1 : 2}.mp3`);
       playSfx(source);
     };
     const breakAimedWall = () => {
@@ -972,7 +989,7 @@ export function MineroomsGame() {
       if (top > canvas.height * .5 || bottom < canvas.height * .5) return;
       if (hit.cell === "pit") {
         if (!fallTransitionRef.current) {
-          void playBufferedSfx("/sounds/mine-broke.mp3", 3, 1);
+          void playBufferedSfx(audioUrl("mine-broke.mp3"), 3, 1);
           startFall(hit.cellX, hit.cellY);
         }
         return;
@@ -1000,7 +1017,7 @@ export function MineroomsGame() {
       if (top > canvas.height * .5 || bottom < canvas.height * .5) return;
       const key = wallFaceKey(world, hit.cellX, hit.cellY, hit.face);
       if (!wallMarksRef.current.delete(key)) wallMarksRef.current.add(key);
-      playSfx("/sounds/marking.mp3", Math.random() * 4.2, .8);
+      playSfx(audioUrl("marking.mp3"), Math.random() * 4.2, .8);
     };
     breakActionRef.current = breakAimedWall;
     markActionRef.current = markAimedWall;
@@ -1051,7 +1068,7 @@ export function MineroomsGame() {
       }
       if (cell === "pit") {
         if (!fallTransitionRef.current) {
-          void playBufferedSfx("/sounds/mine-broke.mp3", 3, 1);
+          void playBufferedSfx(audioUrl("mine-broke.mp3"), 3, 1);
           startFall(gx, gy);
         }
         return;
@@ -1079,11 +1096,11 @@ export function MineroomsGame() {
       }
       if (fall && !fall.wakeSoundPlayed && fallElapsed >= FALL_REVEAL_START) {
         ensureBgm();
-        playSfx(`/sounds/fall-${Math.random() < .5 ? 1 : 2}.mp3`);
+        playSfx(audioUrl(`fall-${Math.random() < .5 ? 1 : 2}.mp3`));
         fall.wakeSoundPlayed = true;
       }
       if (fall && !fall.standSoundPlayed && fallElapsed >= FALL_REVEAL_START + FALL_WAKE_FLOOR_DURATION) {
-        playSfx("/sounds/walking.mp3", 0, 1);
+        playSfx(audioUrl("walking.mp3"), 0, 1);
         fall.standSoundPlayed = true;
       }
       if (fall && fallElapsed >= FALL_TOTAL_DURATION) {
@@ -1116,9 +1133,9 @@ export function MineroomsGame() {
       const ceilingCell = exitOpening && aimedCeilingCell(worldRef.current, p, canvas.width, canvas.height, settingsRef.current.renderDistance, settingsRef.current.playerHeight, revealedPitsRef.current);
       const aimingExit = exitOpening && ceilingCell?.x === exitOpening.x && ceilingCell.y === exitOpening.y;
       if (!controlsLocked && aimingExit && exitReadyRef.current) {
-        stopBgm();
+        stopBgm(1);
         stopMovementSfx();
-        playSfx("/sounds/exit.mp3");
+        playSfx(audioUrl("exit.mp3"));
         setClearTimeMs(now - runStartedAtRef.current);
         setWon(true);
         document.exitPointerLock?.();
@@ -1127,9 +1144,7 @@ export function MineroomsGame() {
       if (exitOpening && !aimingExit) exitReadyRef.current = true;
       if (now - lastDebugUpdate >= 100) {
         lastDebugUpdate = now;
-        const goal = goalRef.current;
         if (mineCounterElementRef.current) mineCounterElementRef.current.textContent = `${copy.markedMines} ${countMarkedCells(worldRef.current, wallMarksRef.current)} / ${totalPitsRef.current}`;
-        if (debugElementRef.current) debugElementRef.current.textContent = `${copy.position}  ${p.x.toFixed(1)}, ${p.y.toFixed(1)}\n${copy.goal} ${goal.x}, ${goal.y}\n${copy.dropped}: ${droppedRef.current}`;
       }
       const inFallMotion = Boolean(fall && fallElapsed >= FALL_DROP_DELAY && fallElapsed < FALL_DROP_DURATION);
       const dropProgress = inFallMotion ? Math.max(0, Math.min(1, (fallElapsed - FALL_DROP_DELAY) / FALL_MOTION_DURATION)) : 0;
@@ -1314,7 +1329,7 @@ export function MineroomsGame() {
     <canvas ref={canvasRef} aria-label="Mineroomsの一人称ゲーム画面" />
     <canvas ref={dustCanvasRef} className="dust-layer" aria-hidden="true" />
     {settings.renderMode === "dreamy" && <div className="dream-filter"/>}<div ref={fallBlurRef} className="fall-blur"/><div ref={fallDarknessRef} className="fall-darkness"/><div className="grain"/><div className="vignette"/>
-    {started && <div className="hud"><div className="status">ROOM {selectedSize} × {selectedSize}<span ref={mineCounterElementRef} className="mine-counter">{copy.markedMines} 0 / {totalPitsRef.current}</span><span ref={debugElementRef} className="debug-coords"/></div><div className="crosshair"/>
+    {started && <div className="hud"><div className="status">ROOM {selectedSize} × {selectedSize}<span ref={mineCounterElementRef} className="mine-counter">{copy.markedMines} 0 / {totalPitsRef.current}</span></div><div className="crosshair"/>
       <div ref={stickElementRef} className="mobile-stick" aria-label="移動スティック" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);stickMove(e)}} onPointerMove={e=>e.currentTarget.hasPointerCapture(e.pointerId)&&stickMove(e)} onPointerUp={stickEnd} onPointerCancel={stickEnd}><div className="stick-knob"/></div>
       <div className="mobile-actions"><button type="button" aria-label={activeLanguage === "ja" ? "壁を壊す" : "Break wall"} onClick={e=>{e.stopPropagation();breakActionRef.current?.()}}><img src="/hammer.svg" alt=""/></button><button type="button" aria-label={activeLanguage === "ja" ? "フラグを付ける、または外す" : "Toggle flag"} onClick={e=>{e.stopPropagation();markActionRef.current?.()}}><img src="/flag.svg" alt=""/></button></div>
     </div>}
@@ -1337,6 +1352,7 @@ export function MineroomsGame() {
       </section>
       <section className="settings-group"><h3>{copy.sound}</h3>
         <div className="setting-row toggle-setting" onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}><span>{copy.masterSound}</span><button className={`toggle ${settings.soundEnabled ? "on" : ""}`} aria-label={`${copy.masterSound}: ${settings.soundEnabled ? copy.on : copy.off}`} aria-pressed={settings.soundEnabled} onClick={e => { e.stopPropagation(); updateSettings({ soundEnabled: !settings.soundEnabled }); }}><i/></button></div>
+        <div className="setting-row"><span>{copy.bgmSource}</span><div className="setting-options"><button className={settings.bgmSource === "music" ? "selected" : ""} onClick={() => updateSettings({ bgmSource: "music" })}>{copy.music}</button><button className={settings.bgmSource === "fluorescent" ? "selected" : ""} onClick={() => updateSettings({ bgmSource: "fluorescent" })}>{copy.fluorescent}</button></div></div>
         <label className="setting-slider"><span>BGM <output>{settings.bgm}%</output></span><input type="range" min="0" max="100" value={settings.bgm} style={rangeStyle(settings.bgm, 0, 100)} onChange={e => updateSettings({ bgm: Number(e.target.value) })}/></label>
         <label className="setting-slider"><span>SE <output>{settings.sfx}%</output></span><input type="range" min="0" max="100" value={settings.sfx} style={rangeStyle(settings.sfx, 0, 100)} onChange={e => updateSettings({ sfx: Number(e.target.value) })}/></label>
       </section>
@@ -1346,7 +1362,7 @@ export function MineroomsGame() {
       <div className="copyleft">(ↄ) opyleft 2026 mitori / studio pseudohalo<br/>all rights re<strong>V</strong>er<strong>S</strong>ed.</div>
       <section><h3>DESIGNED AND DEVELOPED</h3><p><strong>mitori</strong> <span className="credit-note">(studio pseudohalo)</span></p></section>
       <section><h3>DEVELOPMENT SUPPORTED</h3><p><strong>琴瑟</strong></p></section>
-      <section><h3>BACKGROUND MUSIC COMPOSED</h3><p><strong>mitori</strong> <span className="credit-note">(studio pseudohalo)</span></p></section>
+      <section><h3>BACKGROUND MUSIC</h3><p><strong>&quot;It Remembers Nothing, and Neither Do You&quot;</strong><br/><small>by mitori <span className="credit-note">(studio pseudohalo)</span></small></p></section>
       <section><h3>SOUND EFFECTS</h3><p><strong>Splice audio samples under license</strong></p></section>
       <section><h3>INSPIRED BY</h3><p><strong>Minesweeper</strong> (1990s Videogame)<br/><small>by Microsoft</small></p><p><strong>Backrooms creepypasta</strong> (2019-)<br/><small>The original image posted by anonymous user 4chan, HobbyTown USA of Oshkosh, Wisconsin (2003)</small></p><p><strong>Backrooms</strong> (2026 Film)<br/><small>by Kane Parsons, A24</small></p></section>
     </> : infoModal === "licenses" ? <>

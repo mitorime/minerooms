@@ -17,7 +17,6 @@ button { font: inherit; }
 .hud { position: absolute; inset: 0; pointer-events: none; }
 .status { position: absolute; top: 22px; right: 25px; text-align: right; color: rgba(234,226,177,.68); font-size: 10px; letter-spacing: .025em; line-height: 1.7; }
 .mine-counter { display: block; color: rgba(244,235,181,.86); font-variant-numeric: tabular-nums; }
-.debug-coords { display: block; margin-top: 7px; white-space: pre; color: rgba(255,245,185,.82); letter-spacing: 0; }
 .crosshair { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border: 1px solid rgba(255,247,191,.75); border-radius: 50%; }
 .intro, .ending { position: absolute; inset: 0; display: grid; place-items: center; z-index: 4; padding: 28px; }
 .intro { overflow: hidden; background-color: #b2923d; background-image: linear-gradient(rgba(178,146,61,.4),rgba(178,146,61,.4)),url("/title-wallpaper-periodic.png"); background-size: auto,320px 291px; background-repeat: repeat; }
