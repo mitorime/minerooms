@@ -1118,12 +1118,13 @@ export function MineroomsGame() {
       const moving = !controlsLocked && Boolean(forward || side);
       p.bobAmount += ((moving ? 1 : 0) - p.bobAmount) * Math.min(1, dt * 7);
       if (moving) p.bobPhase += dt * 6;
-      const dashPressed = settingsRef.current.dashKey === "Shift"
+      const keyboardDashPressed = settingsRef.current.dashKey === "Shift"
         ? keys.has("ShiftLeft") || keys.has("ShiftRight")
         : keys.has("KeyQ");
-      setMovementSfx(moving ? (dashPressed ? "running" : "walking") : null);
+      const stickAtMaximum = Math.hypot(stick.x, stick.y) >= .98;
+      setMovementSfx(moving ? (keyboardDashPressed || stickAtMaximum ? "running" : "walking") : null);
       if (!controlsLocked && (forward || side)) {
-        const speed = SPEED * (dashPressed ? 2 : 1);
+        const speed = SPEED * (keyboardDashPressed ? 2 : stickAtMaximum ? 1.1 : 1);
         const dx = (Math.cos(p.angle) * forward + Math.cos(p.angle + Math.PI/2) * side) * speed * dt;
         const dy = (Math.sin(p.angle) * forward + Math.sin(p.angle + Math.PI/2) * side) * speed * dt;
         const canOpen = settingsRef.current.chargeBreak && forward > Math.abs(side) * .5;
